@@ -1,0 +1,116 @@
+﻿@page "/"
+@using ObjectGraphDataAnnotationsValidator_ServiceProvider.Components.Sample
+
+<PageTitle>Home</PageTitle>
+
+<h2>Holodeck Configuration</h2>
+
+<EditForm EditContext="editContext" OnValidSubmit="Submit" FormName="Starship8">
+
+    <ObjectGraphDataAnnotationsValidator/>
+
+    <div>
+        <label>
+            Name:
+            <InputText @bind-Value="Model!.Name"/>
+        </label>
+    </div>
+
+    <div>
+        Friends:<br/>
+
+        @for (int i = 0; i < Model.Friends.Count; i++)
+        {
+            var friend = Model.Friends[i];
+
+            <label>Friend @i : <InputText @bind-Value="friend!.Name"/></label>
+            <br/>
+        }
+    </div>
+
+    <br />
+    <div>
+        <span>Press the button to see <em>InvalidOperationException: No service for type</em></span><br />
+        <button type="submit">Update</button>
+    </div>
+        <br /><br />
+
+    <div>
+        When <b>GetRequiredService</b> in <em>ObjectGraphDataAnnotationsValidator_ServiceProvider.Components.Sample.Friend.Validate</em><br />
+        is disabled, you can see in the log that <b>Animal</b> and <b>Friend</b> is validated.<br />
+        (<b>Animal</b> will be validated twice?)
+    </div>
+    
+    <div>
+        <ValidationSummary/>
+    </div>
+
+</EditForm>
+
+
+@code {
+    private EditContext? editContext;
+
+    private Animal? Model { get; set; }
+
+    [Inject] IServiceProvider ServiceProvider { get; set; }
+
+    private ValidationMessageStore? messageStore;
+
+    protected override void OnInitialized()
+    {
+        Model ??= new(){Name = "Tony Stark"};
+
+        Model.Friends ??= [];
+
+        for (int i = 0; i < Model.Friends.Count; i++)
+        {
+            var friend = Model.Friends[i];
+        }
+
+
+        Model.Friends.Add(new Friend());
+        Model.Friends.Add(new Friend() { Name = "Mike" });
+        Model.Friends.Add(new Friend());
+
+        editContext = new(Model);
+        editContext.EnableDataAnnotationsValidation(ServiceProvider);
+        editContext.OnValidationRequested += HandleValidationRequested;
+        messageStore = new(editContext);
+    }
+
+    private void HandleValidationRequested(object? sender,
+        ValidationRequestedEventArgs args)
+    {
+        messageStore?.Clear();
+    }
+
+    private void Submit()
+    {
+        if (editContext.Validate())
+        {
+            Console.Out.WriteLine("Valid");
+        }
+        else
+        {
+            Console.Out.WriteLine("Invalid");
+        }
+
+        if (editContext.GetValidationMessages().Any())
+        {
+            // Update the form after ValidateModel
+            editContext.NotifyValidationStateChanged();
+            return;
+        }
+    }
+
+
+    public void Dispose()
+    {
+        if (editContext is not null)
+        {
+            editContext.OnValidationRequested -= HandleValidationRequested;
+        }
+    }
+
+}
